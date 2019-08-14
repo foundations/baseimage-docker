@@ -238,6 +238,12 @@ environment variables:
     # Give all other processes (such as those which have been forked) 5 minutes to timeout
     ENV KILL_ALL_PROCESSES_TIMEOUT=300
 
+Note: Prior to 0.11.1, the default values for `KILL_PROCESS_TIMEOUT` and `KILL_ALL_PROCESSES_TIMEOUT`
+were 5 seconds. In version 0.11.1+ the default process timeout has been adjusted to 30 seconds to
+allow more time for containers to terminate gracefully. The default timeout of your container runtime
+may supersede this setting, for example Docker currently applies a [10s timeout](https://docs.docker.com/engine/reference/commandline/stop/#options)
+by default before sending SIGKILL, upon `docker stop` or receiving SIGTERM.
+
 ### Environment variables
 
 If you use `/sbin/my_init` as the main container command, then any environment variables set with `docker run --env` or with the `ENV` command in the Dockerfile, will be picked up by `my_init`. These variables will also be passed to all child processes, including `/etc/my_init.d` startup scripts, Runit and Runit-managed services. There are however a few caveats you should be aware of:
@@ -591,14 +597,29 @@ If you want to call the resulting image something else, pass the NAME variable, 
 
     make build NAME=joe/baseimage
 
+You can also change the `ubuntu` base-image to `debian` as these distributions are quite similar.
+
+    make build BASE_IMAGE=debian:stretch
+
+The image will be: `phusion/baseimage-debian-stretch`. Use the `NAME` variable in combination with the `BASE_IMAGE` one to call it `joe/stretch`.
+
+    make build BASE_IMAGE=debian:stretch NAME=joe/stretch
+
+To verify that the various services are started, when the image is run as a container, add `test` to the end of your make invocations, e.g.:
+
+    make build BASE_IMAGE=debian:stretch NAME=joe/stretch test
+
+
 <a name="removing_optional_services"></a>
 ### Removing optional services
 
 The default baseimage-docker installs `syslog-ng`, `cron` and `sshd` services during the build process.
 
-In case you don't need one or more of these services in your image, you can disable its installation.
+In case you don't need one or more of these services in your image, you can disable its installation through the `image/buildconfig` that is sourced within `image/system_services.sh`.  Do this at build time by passing a variable in with `--build-arg`  as in `docker build --build-arg DISABLE_SYSLOG=1 image/`, or you may set the variable in `image/Dockerfile` with an ENV setting above the RUN directive.
 
-As shown in the following example, to prevent `sshd` from being installed into your image, set `1` to the `DISABLE_SSH` variable in the `./image/buildconfig` file.
+These represent build-time configuration, so setting them in the shell env at build-time [will not have any effect](https://github.com/phusion/baseimage-docker/issues/459#issuecomment-439177442).  Setting them in child images' Dockerfiles will also not have any effect.)
+
+You can also set them directly as shown in the following example, to prevent `sshd` from being installed into your image, set `1` to the `DISABLE_SSH` variable in the `./image/buildconfig` file.
 
     ### In ./image/buildconfig
     # ...
